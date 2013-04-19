@@ -18,60 +18,75 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+//This uses the Timer Library from http://www.doctormonk.com/2012/01/arduino-timer-library.html 
  
-#include <Time.h>
- 
-int motorPin = 3;                // choose the pin for the Motor
-int inputPirPin = 2;              // choose the input pin (for PIR sensor)
-int boardLED = 13;               //Debug
+
+#include <Time.h>  
+#include <Event.h>
+#include <Timer.h>
+
+
+int motorPin = 3;                // choose the pin for the Motor //Default 3
+int inputPirPin = 2; // choose the input pin (for PIR sensor)
+int boardLED = 13;            //Debug
 int pirState;                    // we start, assuming no motion detected
 int statusVal = 0;               // variable for reading the pin status
 time_t time = 0;
-int endTime = 10;
-
 
 int delayTime = 10;
 
 boolean isSpraying = false;
-boolean hasDelayed = false;
- 
+boolean sprayDowntime = false;
+
+Timer t;
+
+int initialEvent;
+int duringEvent;
+int afterEvent;
+
 void setup() {
-  pinMode(motorPin, OUTPUT);      // Declare Motor as Output
-  pinMode(inputPirPin, INPUT);     // Declare PIR Input
   Serial.begin(9600);
   
+  pinMode(motorPin, OUTPUT);      // Declare Motor as Output
+  
+  pinMode(inputPirPin, INPUT);     // Declare PIR Input
+  
+  //Serial.println("PIR Sensor Online");
+  
+  int initialEvent = t.every(700, checkSensor);
 }
- 
+
 void loop(){
-  statusVal = digitalRead(inputPirPin);  // read input value
-  if (statusVal == HIGH && isSpraying == false) {            // check if the input is HIGH
-      startSpray(time);
-    }
-  else {
-    stopSpray();
+  t.update();
+}
+
+void checkSensor(){
+  statusVal = digitalRead(inputPirPin);
+  if(statusVal == HIGH && isSpraying == false && sprayDowntime == false){
+    //Serial.println("Should now work!");
+    startSpray();
+  }
+  else{
+    //Serial.println("Should not work");
   }
 }
-
+  
 void stopSpray(){
   isSpraying = false;
-  digitalWrite(motorPin, LOW); // turn LED OFF
-    /*if (pirState == HIGH){
-      // we have just turned of
-      Serial.println("Motion ended!");
-      // We only want to print on the output change, not state
-      pirState = LOW;
-    }*/
+  sprayDowntime = true; //Begin sprayer downtime
+  digitalWrite(motorPin, LOW); // turn Sprayer OFF
+  //Serial.println("Motor should rest now");
+  t.after(10000, resetDowntime);
 }
 
-void startSpray(int time_t){
-  time = now();
+void startSpray(){
   isSpraying = true;
   digitalWrite(motorPin, HIGH);
-  
-    // Turn Motor On
-    /*if (pirState == LOW) {
-      // we have just turned on
-      Serial.println("Motion detected!");
-      // We only want to print on the output change, not state
-      pirState = HIGH;*/
+  t.after(7000, stopSpray);
+}
+
+void resetDowntime(){
+  sprayDowntime = false; //No longer sprayer downtime
+  //Serial.println("I should work again now");
 }
